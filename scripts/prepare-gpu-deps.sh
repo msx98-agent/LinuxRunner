@@ -9,7 +9,8 @@ checkout_dependency() {
     printf 'prepare-gpu-deps.sh:checkout_dependency: entering %s at %s\n' "$1" "$3"
     local dependency_name=$1 dependency_url=$2 dependency_revision=$3
     git init "$GPU_DEPS/$dependency_name"
-    git -C "$GPU_DEPS/$dependency_name" fetch --depth 1 "$dependency_url" "$dependency_revision"
+    git -C "$GPU_DEPS/$dependency_name" config remote.origin.url "$dependency_url"
+    git -C "$GPU_DEPS/$dependency_name" fetch --depth 1 origin "$dependency_revision"
     git -C "$GPU_DEPS/$dependency_name" checkout --detach FETCH_HEAD
     printf 'prepare-gpu-deps.sh:checkout_dependency:end: prepared %s at %s\n' "$dependency_name" "$dependency_revision"
 }
