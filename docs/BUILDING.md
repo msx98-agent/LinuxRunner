@@ -4,7 +4,7 @@ Most users install the IPA. These instructions build the **LinuxRunner** scheme 
 
 ## Tool Requirements
 
-Use macOS with full Xcode and an iPhoneOS SDK, Git, Python 3, Meson, Ninja, CMake, XcodeGen, pkg-config, `ld.lld` and system archive/signing tools on PATH. The retained Build 900 archive records iPhoneOS SDK **27.2**, ARM64 and minimum OS **15.0**. The deployment target is not broad device/older-OS qualification. The GPU dependency build additionally uses GN/depot_tools, rsync and ANGLE's downloaded toolchain inputs.
+Use macOS with full Xcode and an iPhoneOS SDK, Git, Python 3, Meson, Ninja, CMake, XcodeGen, pkg-config, Python modules Mako/PyYAML, `ld.lld` and system archive/signing tools on PATH. The retained Build 900 archive records iPhoneOS SDK **27.2**, ARM64 and minimum OS **15.0**. The deployment target is not broad device/older-OS qualification. The GPU dependency build additionally uses GN/depot_tools, rsync and ANGLE's downloaded toolchain inputs.
 
 ```sh
 git clone https://github.com/mxhm11cr/LinuxRunner.git

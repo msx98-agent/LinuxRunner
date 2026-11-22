@@ -32,7 +32,7 @@ jobs:
           echo 'build-unsigned-ipa:tools: installing build prerequisites'
           brew install meson ninja cmake lld xcodegen pkg-config
           python3 -m venv "$RUNNER_TEMP/linuxrunner-python"
-          "$RUNNER_TEMP/linuxrunner-python/bin/pip" install mako
+          "$RUNNER_TEMP/linuxrunner-python/bin/pip" install mako PyYAML
           echo "$RUNNER_TEMP/linuxrunner-python/bin" >> "$GITHUB_PATH"
           echo "$(brew --prefix lld)/bin" >> "$GITHUB_PATH"
           echo 'build-unsigned-ipa:tools:complete'
