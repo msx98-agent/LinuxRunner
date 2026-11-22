@@ -52,4 +52,3 @@ LINUXRUNNER_LAUNCH_STORYBOARD = LinuxRunnerLaunch
 // Pinned, statically linked GLSL -> SPIR-V -> MSL reference compiler.
 CLANG_CXX_LANGUAGE_STANDARD = c++17
 HEADER_SEARCH_PATHS = $(inherited) "$(SRCROOT)/deps/glslang" "$(SRCROOT)/deps/spirv-cross"
-

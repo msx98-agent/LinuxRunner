@@ -3822,13 +3822,19 @@ private struct StikJITSettingsView: View {
     private func run(_ operation: String) {
         print("StikJITSettingsView.run: entering \(operation)")
         defer { print("StikJITSettingsView.run.end: request scope finished") }
+        if operation == "enable" && LRRuntimeBridge.executionBackendStatus()["active"] as? String == "jit" {
+            print("StikJITSettingsView.run.alreadyActive: success, JIT is already active")
+            message = "JIT is already active."
+            print("StikJITSettingsView.run.alreadyActive.return: no new helper request needed")
+            return
+        }
         do {
             print("StikJITSettingsView.run.do: entering preflight")
             defer { print("StikJITSettingsView.run.do.end: preflight scope finished") }
             let endpoint = address.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard supported, IPv4Address(endpoint) != nil || IPv6Address(endpoint) != nil else {
+            guard supported, IPv4Address(endpoint) != nil else {
                 print("StikJITSettingsView.run.address: error, unsupported environment or invalid IP")
-                throw NSError(domain: "StikJIT", code: 2, userInfo: [NSLocalizedDescriptionKey: "StikJIT requires iOS 17.4+, installation outside LiveContainer, and a valid device IP address."])
+                throw NSError(domain: "StikJIT", code: 2, userInfo: [NSLocalizedDescriptionKey: "StikJIT requires iOS 17.4+, installation outside LiveContainer, and a valid IPv4 device address."])
             }
             let pairing = try Data(contentsOf: pairingURL)
             guard (LRRuntimeBridge.jitStatusReport() as? [String: Any])?["activationQuarantined"] as? Bool != true || operation != "enable" else {

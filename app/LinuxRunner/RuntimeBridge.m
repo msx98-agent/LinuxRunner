@@ -2324,6 +2324,7 @@ static id LRStikJITExtension;
             NSLog(@"RuntimeBridge.runStikJIT.finish.once: entering finalization");
             finished = YES;
             [timer invalidate];
+            timer = nil;
             LRStikJITExtension = nil;
             completion(message, failure);
             NSLog(@"RuntimeBridge.runStikJIT.finish.once.end: finalization completed");
