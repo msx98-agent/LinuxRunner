@@ -3855,6 +3855,11 @@ private struct StikJITSettingsView: View {
                 defer { print("StikJITSettingsView.run.completion.end: result delivered") }
                 busy = false
                 message = error.map { String(reflecting: $0) } ?? reply ?? "StikJIT completed."
+                if error == nil && operation == "enable" {
+                    print("StikJITSettingsView.run.completion.activate: entering runtime verification")
+                    LRRuntimeBridge.retryJITWhenAuthorized()
+                    print("StikJITSettingsView.run.completion.activate.end: runtime verification finished")
+                }
                 refresh()
             }
         } catch {

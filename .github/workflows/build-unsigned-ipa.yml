@@ -39,7 +39,7 @@ jobs:
         run: echo "version=$(xcodebuild -version | shasum -a 256 | cut -d ' ' -f 1)" >> "$GITHUB_OUTPUT"
       - name: Restore pinned Metal libraries
         id: metal-cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: |
             build/gpu/iphoneos/lib
@@ -52,6 +52,15 @@ jobs:
       - name: Build Metal libraries
         if: steps.metal-cache.outputs.cache-hit != 'true'
         run: scripts/build-gpu-deps.sh iphoneos
+      - name: Save pinned Metal libraries
+        if: steps.metal-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            build/gpu/iphoneos/lib
+            build/gpu/iphoneos/include
+            build/gpu/iphoneos/REVISIONS
+          key: ${{ steps.metal-cache.outputs.cache-primary-key }}
       - name: Build pinned StikJIT framework
         run: scripts/build-stikjit.sh
       - name: Build unsigned JIT-capable IPA
