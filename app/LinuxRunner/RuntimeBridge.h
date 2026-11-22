@@ -97,6 +97,7 @@ void LRSetDatalessMaterialization(void);
 + (NSDictionary *)gpuStatus;                 // mode, active renderer, detail
 + (NSDictionary *)jitStatusReport;           // state (Interpreter Active … JIT Active), detail, counters
 + (void)retryJITWhenAuthorized;
++ (void)runStikJIT:(NSDictionary *)payload completion:(void (^)(NSString * _Nullable, NSError * _Nullable))completion;
 + (BOOL)requiresPreparedJITRegion;      // iOS 26+: StikDebug's TXM script protocol
 + (NSDictionary *)executionBackendStatus;
 + (BOOL)activateJIT:(NSString * _Nullable * _Nullable)detail;

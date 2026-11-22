@@ -379,6 +379,10 @@
 		1B1100000000000000000004 /* GUISupport.bundle in Resources */ = {isa = PBXBuildFile; fileRef = 1B1200000000000000000004; };
 1C1100000000000000000001 /* Diagnostics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C1200000000000000000001; };
 		1D1100000000000000000854 /* shader_compiler.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1D1200000000000000000854 /* shader_compiler.cpp */; };
+571C00000000000000000004 = {isa = PBXBuildFile; fileRef = 571C00000000000000000001; };
+571C00000000000000000005 = {isa = PBXBuildFile; fileRef = 571C00000000000000000002; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+571C00000000000000000006 = {isa = PBXBuildFile; fileRef = 571C00000000000000000003; };
+571C00000000000000000007 = {isa = PBXBuildFile; fileRef = 571C00000000000000000003; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXBuildRule section */
@@ -537,6 +541,7 @@
 			remoteGlobalIDString = BB13F7D0200ACCA2003D1C4D;
 			remoteInfo = Ninja;
 		};
+571C0000000000000000000F = {isa = PBXContainerItemProxy; containerPortal = BB792B461F96D8E000FFB7A4; proxyType = 1; remoteGlobalIDString = 571C0000000000000000000B; remoteInfo = StikJITHelper; };
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -555,6 +560,7 @@
 			dstPath = "";
 			dstSubfolderSpec = 13;
 			files = (
+571C00000000000000000005,
 			);
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -570,6 +576,7 @@
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+571C0000000000000000000A = {isa = PBXCopyFilesBuildPhase; buildActionMask = 2147483647; dstPath = ""; dstSubfolderSpec = 10; files = (571C00000000000000000007, ); name = "Embed StikJIT Framework"; runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
@@ -955,6 +962,9 @@
 		1B1200000000000000000004 /* GUISupport.bundle */ = {isa = PBXFileReference; lastKnownFileType = wrapper.cfbundle; path = app/LinuxRunner/GUISupport.bundle; sourceTree = SOURCE_ROOT; };
 1C1200000000000000000001 /* Diagnostics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = app/LinuxRunner/Diagnostics.swift; sourceTree = SOURCE_ROOT; };
 		1D1200000000000000000854 /* shader_compiler.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = graphics/shader_compiler.cpp; sourceTree = SOURCE_ROOT; };
+571C00000000000000000001 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = app/StikJITHelper/RequestHandler.swift; sourceTree = SOURCE_ROOT; };
+571C00000000000000000002 = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; path = StikJITHelper.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+571C00000000000000000003 = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; path = build/StikJIT.framework; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -1035,6 +1045,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+571C00000000000000000009 = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (571C00000000000000000006, ); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -1239,6 +1250,8 @@
 		BB792B451F96D8E000FFB7A4 = {
 			isa = PBXGroup;
 			children = (
+571C00000000000000000001,
+571C00000000000000000003,
 				1A1400000000000000000001,
                 1A14000000000000000000C1,
 				1A1200000000000000000004 /* FileTransfer.c */,
@@ -1290,6 +1303,7 @@
 		BB792B511F96D90D00FFB7A4 /* Products */ = {
 			isa = PBXGroup;
 			children = (
+571C00000000000000000002,
 				BB792B501F96D90D00FFB7A4 /* iSH.app */,
 				AA0000021F96D90D00FFB7A4 /* iSH ARM64.app */,
 				A07000000000000000000002 /* LinuxKit AOT Bootstrap.app */,
@@ -1762,6 +1776,7 @@
 				AA000200AF96D90D00FFB7A4 /* PBXBuildRule */,
 			);
 			dependencies = (
+571C00000000000000000010,
 				AA000060AF96D90D00FFB7A4 /* PBXTargetDependency */,
 				AA000062AF96D90D00FFB7A4 /* PBXTargetDependency */,
 			);
@@ -1965,6 +1980,7 @@
 			productReference = BBFB2C5B2590257E00545EAB /* libish_emu.a */;
 			productType = "com.apple.product-type.library.static";
 		};
+571C0000000000000000000B = {isa = PBXNativeTarget; buildConfigurationList = 571C0000000000000000000C; buildPhases = (571C00000000000000000008, 571C00000000000000000009, 571C0000000000000000000A, ); buildRules = (); dependencies = (); name = StikJITHelper; productName = StikJITHelper; productReference = 571C00000000000000000002; productType = "com.apple.product-type.app-extension"; };
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -2057,6 +2073,7 @@
 			);
 			projectRoot = "";
 			targets = (
+571C0000000000000000000B,
 				BB41591B255EF9E300E0950C /* iSHUITests */,
 				AA0000011F96D90D00FFB7A4 /* iSH-ARM64 */,
 				A07000000000000000000001 /* iSH-ARM64-AOT-Bootstrap */,
@@ -2829,6 +2846,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+571C00000000000000000008 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (571C00000000000000000004, ); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -2921,6 +2939,7 @@
 			target = BB13F7D0200ACCA2003D1C4D /* Ninja */;
 			targetProxy = BBFB2C562590257E00545EAB /* PBXContainerItemProxy */;
 		};
+571C00000000000000000010 = {isa = PBXTargetDependency; target = 571C0000000000000000000B; targetProxy = 571C0000000000000000000F; };
 /* End PBXTargetDependency section */
 
 /* Begin PBXVariantGroup section */
@@ -3581,6 +3600,8 @@
 			};
 			name = Release;
 		};
+571C0000000000000000000D = {isa = XCBuildConfiguration; buildSettings = {APPLICATION_EXTENSION_API_ONLY = NO; ARCHS = arm64; CLANG_ENABLE_MODULES = YES; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 910; FRAMEWORK_SEARCH_PATHS = "$(SRCROOT)/build"; INFOPLIST_FILE = app/StikJITHelper/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 17.4; LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks"; MARKETING_VERSION = 1.1.2; PRODUCT_BUNDLE_IDENTIFIER = "$(ROOT_BUNDLE_IDENTIFIER).StikJITHelper"; PRODUCT_NAME = StikJITHelper; ROOT_BUNDLE_IDENTIFIER = dev.linuxrunner.app; SDKROOT = iphoneos; SKIP_INSTALL = YES; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2";}; name = Debug; };
+571C0000000000000000000E = {isa = XCBuildConfiguration; buildSettings = {APPLICATION_EXTENSION_API_ONLY = NO; ARCHS = arm64; CLANG_ENABLE_MODULES = YES; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 910; FRAMEWORK_SEARCH_PATHS = "$(SRCROOT)/build"; INFOPLIST_FILE = app/StikJITHelper/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 17.4; LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks"; MARKETING_VERSION = 1.1.2; PRODUCT_BUNDLE_IDENTIFIER = "$(ROOT_BUNDLE_IDENTIFIER).StikJITHelper"; PRODUCT_NAME = StikJITHelper; ROOT_BUNDLE_IDENTIFIER = dev.linuxrunner.app; SDKROOT = iphoneos; SKIP_INSTALL = YES; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2";}; name = Release; };
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -3802,6 +3823,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+571C0000000000000000000C = {isa = XCConfigurationList; buildConfigurations = (571C0000000000000000000D, 571C0000000000000000000E, ); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
 /* End XCConfigurationList section */
 	};
 	rootObject = BB792B461F96D8E000FFB7A4 /* Project object */;

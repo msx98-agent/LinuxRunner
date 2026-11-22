@@ -80,3 +80,7 @@ are included under `share/linuxrunner`. Packaging is defined by
 prefix are described in `docs/STEAMOS_EXPERIMENT.md`.
 
 The application source, build scripts and dependency revisions are retained in the repository. [SOURCE_ORIGIN.txt](SOURCE_ORIGIN.txt) records the release lineage and exact dependency commits. Submodule contents are not included in GitHub's automatic source archives; initialize the pinned submodules when building from a clone. Source-distribution requirements for bundled binaries apply separately from the licenses of packages downloaded later by users. The release source asset must include the matching application snapshot, pinned build dependencies, graphics source/patches, matching Alpine recipes and checksum-verified inputs, and matching Ghostty Web/Ghostty source. The unchanged bundled Alpine root archive can use the already retained matching source inputs. Preserve the complete notices asset alongside the IPA.
+
+## StikJIT
+
+The StikJIT helper includes [StikJIT](https://github.com/StikDebug/StikJIT), pinned by the `deps/StikJIT` submodule, under MPL-2.0. Its license is retained in `licenses/StikJIT-MPL-2.0.txt`; corresponding source and upstream notices are in that submodule. The framework includes upstream idevice FFI and bundled JIT scripts. LinuxRunner does not imply endorsement by StikDebug.

@@ -62,3 +62,13 @@ of code signing. Signing tools must keep `get-task-allow` for a debugger to atta
    or "JIT active · TXM…" (iOS 26); `cat /proc/ish/jit` in the terminal must say `mode: JIT`.
 3. Without StikDebug: status must stay Interpreter with iOS's refusal as the reason; Linux keeps working.
 4. Compare `interp_bench` / Python start with and without the JIT on the device.
+
+## Built-in StikJIT
+
+JIT-capable builds offer **Settings → Execution Engine → JIT Enablement → Built-in StikJIT**. Import this device's pairing plist, edit **Target device IP** (defaults to `10.254.0.1`), and select **Enable with StikJIT**. **Prepare JIT** checks connectivity and mounts the developer disk image without attaching; **Reset Developer Disk Image** clears its download cache. **Force JIT Script** overrides TXM detection while retaining the fixed universal script.
+
+Requires iOS 17.4+, Developer Mode, LocalDevVPN, and a signature preserving `get-task-allow`. LiveContainer cannot launch this helper: use the external debugger choices there. A nearby Wi-Fi connection is recommended. Without Wi-Fi, enable cellular data, connect LocalDevVPN, then enable Airplane Mode before returning. Reboot and retry persistent preparation failures. The pairing record stays in private Application Support and is never committed or logged. Changing the IP, script toggle, or pairing file invalidates preparation feedback.
+
+StikJIT runs synchronously in a separate embedded extension; LinuxRunner continues its existing verified activation protocol. Read the runtime **JIT Status** after enablement; helper completion alone does not prove translated guest code is executing. Physical-device activation still needs testing with the intended OS and signing method.
+
+The **Build unsigned IPA** GitHub workflow builds the pinned framework from source and uploads `LinuxRunner-unsigned-IPA`. It enables JIT compilation; the interpreter remains the initial backend. Local builds additionally require XcodeGen to build StikJIT. Signers must sign the embedded extension and its framework as well as the containing app.

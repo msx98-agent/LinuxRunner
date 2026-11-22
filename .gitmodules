@@ -15,3 +15,6 @@
 [submodule "deps/spirv-cross"]
 	path = deps/spirv-cross
 	url = https://github.com/KhronosGroup/SPIRV-Cross.git
+[submodule "deps/StikJIT"]
+	path = deps/StikJIT
+	url = https://github.com/StikDebug/StikJIT.git

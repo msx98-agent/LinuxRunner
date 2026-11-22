@@ -1,0 +1,53 @@
+name: Build unsigned IPA
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: unsigned-ipa-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: Initialize pinned dependencies
+        run: git submodule update --init --recursive --checkout -- deps/libapps deps/libarchive deps/glslang deps/spirv-cross deps/StikJIT
+      - name: Install build tools
+        run: |
+          echo 'build-unsigned-ipa:tools: installing build prerequisites'
+          brew install meson ninja cmake lld xcodegen
+          echo "$(brew --prefix lld)/bin" >> "$GITHUB_PATH"
+          echo 'build-unsigned-ipa:tools:complete'
+      - name: Build pinned StikJIT framework
+        run: scripts/build-stikjit.sh
+      - name: Build unsigned JIT-capable IPA
+        env:
+          LINUXRUNNER_JIT: 'YES'
+        run: scripts/build-ipa.sh --unsigned
+      - name: Verify embedded JIT helper
+        run: python3 scripts/check-stikjit-ipa.py build/releases/LinuxRunner.ipa
+      - name: Upload unsigned IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: LinuxRunner-unsigned-IPA
+          path: |
+            build/releases/*.ipa
+            build/releases/*.sha256
+            build/releases/*.json
+            build/releases/*STATUS.txt
+            build/releases/source-revision.txt
+          if-no-files-found: error
+      - name: Upload build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: LinuxRunner-build-logs
+          path: build/releases/*.log
+          if-no-files-found: ignore

@@ -39,7 +39,7 @@
 	<key>NSBluetoothAlwaysUsageDescription</key>
 	<string>Connect Arduino, ESP32 and other boards that offer a Bluetooth serial (UART) link, so Linux programs can use them as /dev/ttyBLE serial ports.</string>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>Allow Linux applications to connect to computers and services on your local network.</string>
+	<string>Connect Linux applications to local services and discover the device Remote Pairing service to enable JIT.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>Linux programs you run (/dev/location) can read your location, and "Keep Linux Running in Background" uses a coarse location session so Linux keeps running while you use other apps. Your location is not stored or sent by LinuxRunner.</string>
 	<key>NSLocationAlwaysUsageDescription</key>
@@ -135,5 +135,9 @@
 	</array>
 	<key>fuc</key>
 	<string>ICON_STUFF</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_remotepairing._tcp</string>
+	</array>
 </dict>
 </plist>

@@ -2276,3 +2276,96 @@ static int LRSharedDirectory(NSString *root,NSString *relative){
     [self presentViewController:share animated:YES completion:nil];
 }
 @end
+
+@interface NSObject (LRStikJITExtensionSPI)
++ (instancetype)extensionWithIdentifier:(NSString *)identifier error:(NSError **)error;
+- (void)beginExtensionRequestWithInputItems:(NSArray *)items completion:(void (^)(NSUUID *))completion;
+- (void)setRequestCompletionBlock:(void (^)(NSUUID *, NSArray *))block;
+- (void)setRequestCancellationBlock:(void (^)(NSUUID *, NSError *))block;
+- (void)cancelExtensionRequestWithIdentifier:(NSUUID *)identifier;
+@end
+
+extern CFTypeRef SecTaskCreateFromSelf(CFAllocatorRef allocator);
+extern CFTypeRef SecTaskCopyValueForEntitlement(CFTypeRef task, CFStringRef entitlement, CFErrorRef *error);
+static id LRStikJITExtension;
+
+@implementation LRRuntimeBridge (StikJIT)
++ (void)runStikJIT:(NSDictionary *)payload completion:(void (^)(NSString *, NSError *))completion {
+    NSLog(@"RuntimeBridge.runStikJIT: entering helper preflight");
+    CFTypeRef task = SecTaskCreateFromSelf(NULL);
+    CFTypeRef entitlement = task ? SecTaskCopyValueForEntitlement(task, CFSTR("get-task-allow"), NULL) : NULL;
+    BOOL permitted = entitlement == kCFBooleanTrue;
+    if(entitlement) CFRelease(entitlement);
+    if(task) CFRelease(task);
+    NSString *reason = !permitted ? @"This installation needs get-task-allow. Re-sign using a compatible signing method." : nil;
+    if (getenv("LC_HOME_PATH")) reason = @"Built-in StikJIT is unavailable inside LiveContainer. Select StikDebug or Wait for Debugger.";
+    if (LRStikJITExtension) reason = @"A StikJIT helper request is already running.";
+    if (reason) {
+        NSLog(@"RuntimeBridge.runStikJIT.preflight: error, %@", reason);
+        completion(nil, [NSError errorWithDomain:@"StikJIT" code:1 userInfo:@{NSLocalizedDescriptionKey:reason}]);
+        NSLog(@"RuntimeBridge.runStikJIT.preflight.return: failed preflight completed");
+        return;
+    }
+    NSError *error = nil;
+    NSString *identifier = [NSBundle.mainBundle.bundleIdentifier stringByAppendingString:@".StikJITHelper"];
+    id extension = [NSClassFromString(@"NSExtension") extensionWithIdentifier:identifier error:&error];
+    if (!extension) {
+        NSLog(@"RuntimeBridge.runStikJIT.lookup: error, %@", error);
+        completion(nil, error ?: [NSError errorWithDomain:@"StikJIT" code:2 userInfo:@{NSLocalizedDescriptionKey:@"StikJIT helper extension is unavailable."}]);
+        NSLog(@"RuntimeBridge.runStikJIT.lookup.return: extension lookup failed");
+        return;
+    }
+    LRStikJITExtension = extension;
+    __block NSTimer *timer = nil;
+    __block BOOL finished = NO;
+    void (^finish)(NSString *, NSError *) = ^(NSString *message, NSError *failure) {
+        NSLog(@"RuntimeBridge.runStikJIT.finish: entering completion, error=%@", failure);
+        if (!finished) {
+            NSLog(@"RuntimeBridge.runStikJIT.finish.once: entering finalization");
+            finished = YES;
+            [timer invalidate];
+            LRStikJITExtension = nil;
+            completion(message, failure);
+            NSLog(@"RuntimeBridge.runStikJIT.finish.once.end: finalization completed");
+        }
+        NSLog(@"RuntimeBridge.runStikJIT.finish.end: completion scope finished");
+    };
+    [extension setRequestCompletionBlock:^(NSUUID *request, NSArray *items) {
+        NSLog(@"RuntimeBridge.runStikJIT.reply: entering helper reply");
+        dispatch_async(dispatch_get_main_queue(), ^{
+            NSLog(@"RuntimeBridge.runStikJIT.reply.main: entering reply delivery");
+            NSExtensionItem *item = items.firstObject;
+            finish(item.userInfo[@"message"] ?: @"StikJIT completed", nil);
+            NSLog(@"RuntimeBridge.runStikJIT.reply.main.end: success");
+        });
+        NSLog(@"RuntimeBridge.runStikJIT.reply.end: reply queued");
+    }];
+    [extension setRequestCancellationBlock:^(NSUUID *request, NSError *failure) {
+        NSLog(@"RuntimeBridge.runStikJIT.cancel: error, %@; stack=%@", failure, NSThread.callStackSymbols);
+        dispatch_async(dispatch_get_main_queue(), ^{
+            NSLog(@"RuntimeBridge.runStikJIT.cancel.main: entering error delivery");
+            finish(nil, failure ?: [NSError errorWithDomain:@"StikJIT" code:3 userInfo:@{NSLocalizedDescriptionKey:@"The StikJIT helper was cancelled."}]);
+            NSLog(@"RuntimeBridge.runStikJIT.cancel.main.end: error delivered");
+        });
+        NSLog(@"RuntimeBridge.runStikJIT.cancel.end: cancellation queued");
+    }];
+    NSExtensionItem *item = [NSExtensionItem new];
+    item.userInfo = payload;
+    __block NSUUID *requestID = nil;
+    NSDate *deadline = [NSDate dateWithTimeIntervalSinceNow:300];
+    timer = [NSTimer scheduledTimerWithTimeInterval:0.25 repeats:YES block:^(NSTimer *tick) {
+        if ([payload[@"operation"] isEqual:@"enable"] && self.debuggerAttached) [self retryJITWhenAuthorized];
+        if (deadline.timeIntervalSinceNow < 0) {
+            NSLog(@"RuntimeBridge.runStikJIT.timeout: error, helper exceeded five minutes");
+            [extension cancelExtensionRequestWithIdentifier:requestID];
+            finish(nil, [NSError errorWithDomain:@"StikJIT" code:4 userInfo:@{NSLocalizedDescriptionKey:@"StikJIT timed out. Check LocalDevVPN, device IP and pairing file."}]);
+            NSLog(@"RuntimeBridge.runStikJIT.timeout.end: failure delivered");
+        }
+    }];
+    [extension beginExtensionRequestWithInputItems:@[item] completion:^(NSUUID *request) {
+        requestID = request;
+        NSLog(@"RuntimeBridge.runStikJIT.started: success, helper request %@", request);
+    }];
+    NSLog(@"RuntimeBridge.runStikJIT.end: success, helper launched");
+}
+@end

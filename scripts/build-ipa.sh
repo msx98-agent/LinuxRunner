@@ -25,6 +25,11 @@ artifact="${ARTIFACT_NAME:-$artifact}"
 export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}"
 python3 scripts/generate-gui-support-manifest.py --check
 scripts/bootstrap-macos.sh
+if [[ ! -d build/StikJIT.framework ]]; then
+    echo "build-ipa.sh:stikjit: building helper framework"
+    scripts/build-stikjit.sh
+    echo "build-ipa.sh:stikjit:complete"
+fi
 release="${RELEASE_DIR:-$PWD/build/releases}"
 if [[ $diagnostic == YES && -z ${RELEASE_DIR:-} ]]; then release="$PWD/build/device-diagnostics/release"; fi
 if [[ $gui_test == YES && -z ${RELEASE_DIR:-} ]]; then release="$PWD/build/gui/release"; fi
@@ -39,7 +44,7 @@ args=("LINUXRUNNER_CMAKE=$cmake_path" -project iSH.xcodeproj -scheme LinuxRunner
       -destination 'generic/platform=iOS' -archivePath "$archive"
       -derivedDataPath "$PWD/build/release-derived"
       "LINUXRUNNER_SOURCE_COMMIT=$(git rev-parse HEAD)"
-      IPHONEOS_DEPLOYMENT_TARGET=15.0 "LINUXRUNNER_DIAGNOSTIC=$diagnostic"
+      "LINUXRUNNER_DIAGNOSTIC=$diagnostic"
       "ROOT_BUNDLE_IDENTIFIER=${BUNDLE_ID:-dev.linuxrunner.app}")
 if [[ $diagnostic == YES ]]; then args+=(CODE_SIGN_ENTITLEMENTS=app/LinuxRunner/PrivateContainer.entitlements); fi
 # Optional variants (app/AppARM64.xcconfig): JIT-capable runtime, GPU device
@@ -78,10 +83,14 @@ if [[ $mode == unsigned ]]; then
     python3 - "$staging/entitlements.plist" "${BUNDLE_ID:-dev.linuxrunner.app}" "$diagnostic" <<'PYADHOC'
 import plistlib, sys
 with open(sys.argv[1], 'wb') as out:
-    plistlib.dump({} if sys.argv[3] == 'YES' else {'com.apple.security.application-groups': ['group.' + sys.argv[2]]}, out)
+    plistlib.dump({} if sys.argv[3] == 'YES' else {'com.apple.security.application-groups': ['group.' + sys.argv[2]], 'get-task-allow': True}, out)
 PYADHOC
     # Retain exactly the signed executable shipped in the IPA, so the archive
     # provenance check remains byte-for-byte strict after ad-hoc signing.
+    echo 'build-ipa.sh:nested-signing: signing helper framework and extension'
+    codesign --force --sign - --timestamp=none "$app/PlugIns/StikJITHelper.appex/Frameworks/StikJIT.framework"
+    codesign --force --sign - --timestamp=none "$app/PlugIns/StikJITHelper.appex"
+    echo 'build-ipa.sh:nested-signing:complete'
     codesign --force --sign - --timestamp=none --generate-entitlement-der --entitlements "$staging/entitlements.plist" "$app"
     codesign --verify --strict "$app"
     ditto --norsrc --noextattr --noacl --noqtn "$app" "$staging/Payload/LinuxRunner.app"
@@ -92,7 +101,7 @@ PYADHOC
     mv "$staging/LinuxRunner.ipa" "$ipa"
     python3 scripts/validate-ipa.py "$ipa" --report "$release/$artifact.validation.json" ||
         { echo 'IPA validation failed; do not publish this artifact.' >&2; exit 1; }
-    printf 'UNSIGNED IPA (ad-hoc signed, no Apple signature). Requires signing and provisioning before physical-device installation.\nBundle ID: %s\nApp group: group.%s\nEmbedded extensions: none in this ARM64 scheme\nPrivate Application Support fallback: supported\n' \
+    printf 'UNSIGNED IPA (ad-hoc signed, no Apple signature). Requires signing and provisioning before physical-device installation.\nBundle ID: %s\nApp group: group.%s\nEmbedded extensions: StikJITHelper (requires iOS 17.4+)\nPrivate Application Support fallback: supported\n' \
         "${BUNDLE_ID:-dev.linuxrunner.app}" "${BUNDLE_ID:-dev.linuxrunner.app}" > "$release/SIGNING-STATUS.txt"
 else
     options="${EXPORT_OPTIONS_PLIST:-$release/ExportOptions.plist}"
@@ -116,7 +125,7 @@ fi
 python3 - "$release/$artifact.entitlements.plist" "${BUNDLE_ID:-dev.linuxrunner.app}" "$diagnostic" <<'PYENT'
 import plistlib, sys
 with open(sys.argv[1], 'wb') as out:
-    plistlib.dump({} if sys.argv[3] == 'YES' else {'com.apple.security.application-groups': ['group.' + sys.argv[2]]}, out)
+    plistlib.dump({} if sys.argv[3] == 'YES' else {'com.apple.security.application-groups': ['group.' + sys.argv[2]], 'get-task-allow': True}, out)
 PYENT
 (cd "$release" && shasum -a 256 "$artifact.ipa" > "$artifact.ipa.sha256")
 git rev-parse HEAD > "$release/source-revision.txt"
