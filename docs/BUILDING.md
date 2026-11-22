@@ -4,7 +4,7 @@ Most users install the IPA. These instructions build the **LinuxRunner** scheme 
 
 ## Tool Requirements
 
-Use macOS with full Xcode and an iPhoneOS SDK, Git, Python 3, Meson, Ninja, CMake, pkg-config, `ld.lld` and system archive/signing tools on PATH. The retained Build 900 archive records iPhoneOS SDK **27.2**, ARM64 and minimum OS **15.0**. The deployment target is not broad device/older-OS qualification. The GPU dependency build additionally uses GN/depot_tools, rsync and ANGLE's downloaded toolchain inputs.
+Use macOS with full Xcode and an iPhoneOS SDK, Git, Python 3, Meson, Ninja, CMake, XcodeGen, pkg-config, `ld.lld` and system archive/signing tools on PATH. The retained Build 900 archive records iPhoneOS SDK **27.2**, ARM64 and minimum OS **15.0**. The deployment target is not broad device/older-OS qualification. The GPU dependency build additionally uses GN/depot_tools, rsync and ANGLE's downloaded toolchain inputs.
 
 ```sh
 git clone https://github.com/mxhm11cr/LinuxRunner.git
@@ -108,3 +108,13 @@ Use disposable fixtures for mutating tests. [Architecture](ARCHITECTURE.md) · [
 For the optional local SteamFrame image exporter and prepared ARM64 installer,
 see [SteamOS userspace experiment](STEAMOS.md). The archive is supplied
 separately from the IPA and must match the bundled manifest.
+
+## StikJIT and GitHub Actions
+
+`Build unsigned IPA` runs on pushes and manual dispatch. It initializes pinned source dependencies, installs the build tools, builds StikJIT from `deps/StikJIT`, and builds the pinned Metal graphics dependencies, and invokes the unsigned IPA script with both `LINUXRUNNER_JIT=YES` and `LINUXRUNNER_VIRGL=YES`. The IPA script runs `scripts/bootstrap-macos.sh` before archiving; that script checks prerequisites rather than installing them.
+
+The unsigned IPA embeds `StikJITHelper.appex` and its framework, signs nested bundles before the app, and retains `get-task-allow` in the ad-hoc host signature. Device installation still requires a suitable signing/provisioning method, including signatures for the helper and framework. The helper requires iOS 17.4 while the host retains its existing minimum OS.
+
+JIT compilation and Metal graphics are independent options. A JIT-capable software graphics build does not require the additional ANGLE/virglrenderer dependency build. To include Metal, prepare the exact graphics revisions listed above, run the GPU dependency build, and enable `LINUXRUNNER_VIRGL=YES` as well.
+
+The workflow uses `scripts/prepare-gpu-deps.sh` to reproduce the pinned graphics checkouts and ANGLE toolchain. It caches built Metal libraries by Xcode version and dependency/patch inputs, then runs the existing IPA audit to verify JIT build settings and exported EGL symbols.

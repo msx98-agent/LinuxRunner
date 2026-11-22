@@ -14,23 +14,57 @@ concurrency:
 jobs:
   build:
     runs-on: macos-15
-    timeout-minutes: 90
+    timeout-minutes: 180
+    env:
+      GPU_DEPS: ${{ runner.temp }}/linuxrunner-gpu-deps
+      DEPOT_TOOLS_UPDATE: '0'
     steps:
       - uses: actions/checkout@v4
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
       - name: Initialize pinned dependencies
         run: git submodule update --init --recursive --checkout -- deps/libapps deps/libarchive deps/glslang deps/spirv-cross deps/StikJIT
       - name: Install build tools
         run: |
           echo 'build-unsigned-ipa:tools: installing build prerequisites'
-          brew install meson ninja cmake lld xcodegen
+          brew install meson ninja cmake lld xcodegen pkg-config
+          python3 -m venv "$RUNNER_TEMP/linuxrunner-python"
+          "$RUNNER_TEMP/linuxrunner-python/bin/pip" install mako
+          echo "$RUNNER_TEMP/linuxrunner-python/bin" >> "$GITHUB_PATH"
           echo "$(brew --prefix lld)/bin" >> "$GITHUB_PATH"
           echo 'build-unsigned-ipa:tools:complete'
+      - name: Identify Xcode toolchain
+        id: xcode
+        run: echo "version=$(xcodebuild -version | shasum -a 256 | cut -d ' ' -f 1)" >> "$GITHUB_OUTPUT"
+      - name: Restore pinned Metal libraries
+        id: metal-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            build/gpu/iphoneos/lib
+            build/gpu/iphoneos/include
+            build/gpu/iphoneos/REVISIONS
+          key: metal-${{ runner.os }}-${{ runner.arch }}-${{ steps.xcode.outputs.version }}-${{ hashFiles('scripts/build-gpu-deps.sh', 'scripts/prepare-gpu-deps.sh', 'scripts/gpu/**') }}
+      - name: Prepare pinned Metal sources
+        if: steps.metal-cache.outputs.cache-hit != 'true'
+        run: scripts/prepare-gpu-deps.sh
+      - name: Build Metal libraries
+        if: steps.metal-cache.outputs.cache-hit != 'true'
+        run: scripts/build-gpu-deps.sh iphoneos
       - name: Build pinned StikJIT framework
         run: scripts/build-stikjit.sh
       - name: Build unsigned JIT-capable IPA
         env:
           LINUXRUNNER_JIT: 'YES'
+          LINUXRUNNER_VIRGL: 'YES'
         run: scripts/build-ipa.sh --unsigned
+      - name: Verify JIT and Metal artifact
+        env:
+          LINUXRUNNER_JIT: 'YES'
+          LINUXRUNNER_VERIFY_SOURCE_TREE: ${{ github.workspace }}
+          LINUXRUNNER_EXPECTED_SOURCE_COMMIT: ${{ github.sha }}
+        run: python3 scripts/verify-ipa.py build/releases
       - name: Verify embedded JIT helper
         run: python3 scripts/check-stikjit-ipa.py build/releases/LinuxRunner.ipa
       - name: Upload unsigned IPA

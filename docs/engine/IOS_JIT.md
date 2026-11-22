@@ -36,10 +36,7 @@ actually running and the runtime's reason, never the selected mode as if it were
 - `stikdebug://enable-jit?bundle-id=…&pid=…` (+ `script-name=universal` on iOS 26+);
   `stikdebug` is declared in `LSApplicationQueriesSchemes`.
 
-Not used: private APIs (`csops` / `CS_DEBUGGED` is not read; the debugger check is the public `sysctl`
-`P_TRACED`, the permission check is iOS's own `mprotect`), StikJIT's built-in helper extension (needs
-pairing files, Bonjour/local-network permissions and its own target; StikJIT states no license), any bypass
-of code signing. Signing tools must keep `get-task-allow` for a debugger to attach.
+The built-in StikJIT path uses a helper extension and private Foundation/Security host APIs. Pairing files and Bonjour/local-network declarations support that path. StikJIT is MPL-2.0 licensed. No code-signing bypass is included; signing tools must preserve `get-task-allow` for debugger attachment.
 
 ## Verification so far (Mac only)
 
@@ -71,4 +68,4 @@ Requires iOS 17.4+, Developer Mode, LocalDevVPN, and a signature preserving `get
 
 StikJIT runs synchronously in a separate embedded extension; LinuxRunner continues its existing verified activation protocol. Read the runtime **JIT Status** after enablement; helper completion alone does not prove translated guest code is executing. Physical-device activation still needs testing with the intended OS and signing method.
 
-The **Build unsigned IPA** GitHub workflow builds the pinned framework from source and uploads `LinuxRunner-unsigned-IPA`. It enables JIT compilation; the interpreter remains the initial backend. Local builds additionally require XcodeGen to build StikJIT. Signers must sign the embedded extension and its framework as well as the containing app.
+The **Build unsigned IPA** GitHub workflow builds the pinned framework from source and uploads `LinuxRunner-unsigned-IPA`. It enables JIT compilation and the optional Metal graphics backend; the interpreter remains available until JIT is authorized. Local builds additionally require XcodeGen to build StikJIT. Signers must sign the embedded extension and its framework as well as the containing app.
