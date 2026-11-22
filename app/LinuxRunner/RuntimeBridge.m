@@ -2298,7 +2298,6 @@ static id LRStikJITExtension;
     if(entitlement) CFRelease(entitlement);
     if(task) CFRelease(task);
     NSString *reason = !permitted ? @"This installation needs get-task-allow. Re-sign using a compatible signing method." : nil;
-    if (getenv("LC_HOME_PATH")) reason = @"Built-in StikJIT is unavailable inside LiveContainer. Select StikDebug or Wait for Debugger.";
     if (LRStikJITExtension) reason = @"A StikJIT helper request is already running.";
     if (reason) {
         NSLog(@"RuntimeBridge.runStikJIT.preflight: error, %@", reason);

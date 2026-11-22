@@ -3763,10 +3763,10 @@ private struct StikJITSettingsView: View {
     @AppStorage("LinuxRunnerStikJITForceScript") private var forceScript = false
     @AppStorage("LinuxRunnerStikJITPairingName") private var pairingName = ""
     @State private var importing = false
-    @State private var message = "Import a pairing plist to begin."
+    @State private var message = "Drop pairingFile.plist next to Shared in Files, or import a pairing plist."
     private var pairingURL: URL { FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("StikJIT/pairingFile.plist") }
     private var supported: Bool {
-        if #available(iOS 17.4, *) { return getenv("LC_HOME_PATH") == nil }
+        if #available(iOS 17.4, *) { return true }
         return false
     }
 
@@ -3774,16 +3774,19 @@ private struct StikJITSettingsView: View {
         Section {
             TextField("Target device IP", text: $address).keyboardType(.numbersAndPunctuation).textInputAutocapitalization(.never).autocorrectionDisabled().disabled(busy)
             Toggle("Force JIT Script", isOn: $forceScript).disabled(busy || !LRRuntimeBridge.requiresPreparedJITRegion())
-            LabeledRow("Pairing file", pairingName.isEmpty ? "Not imported" : pairingName)
+            LabeledRow("Imported pairing file", pairingName.isEmpty ? "Not imported" : pairingName)
             Button("Import Pairing Plist") { importing = true }.disabled(busy || !supported)
             Button("Prepare JIT") { run("prepare") }.disabled(busy || !supported)
             Button("Enable with StikJIT") { run("enable") }.disabled(busy || !supported)
             Button("Reset Developer Disk Image") { run("reset") }.disabled(busy || !supported)
             if busy { ProgressView("StikJIT is working…") }
             Text(message).font(.footnote).textSelection(.enabled)
-            if !supported { Text("Requires iOS 17.4 or later and installation outside LiveContainer.").foregroundColor(.orange) }
+            if !supported { Text("Requires iOS 17.4 or later.").foregroundColor(.orange) }
+            else if getenv("LC_HOME_PATH") != nil {
+                Text("LiveContainer may not be able to launch the StikJIT helper. If it fails, try StikDebug or Wait for Debugger.").foregroundColor(.orange)
+            }
         } header: { Text("Built-in StikJIT") } footer: {
-            Text("Enable Developer Mode, sign LinuxRunner with get-task-allow, and connect LocalDevVPN. Import this device’s pairing plist and set its tunnel IP. Nearby Wi-Fi is recommended; without Wi-Fi, enable cellular data, connect LocalDevVPN, then enable Airplane Mode before returning. If preparation keeps failing, reboot and retry. Reset Developer Disk Image to download a fresh cache. The universal script is built in.")
+            Text("Enable Developer Mode, sign LinuxRunner with get-task-allow, and connect LocalDevVPN. StikJIT looks for pairingFile.plist next to Shared in Files and uses the imported copy only if that file is missing. Set the device’s tunnel IP. Nearby Wi-Fi is recommended; without Wi-Fi, enable cellular data, connect LocalDevVPN, then enable Airplane Mode before returning. If preparation keeps failing, reboot and retry. Reset Developer Disk Image to download a fresh cache. The universal script is built in.")
         }
         .fileImporter(isPresented: $importing, allowedContentTypes: [.propertyList, .xml, .data]) { result in importPairing(result) }
         .onChange(of: address) { _ in message = "Device IP changed. Prepare JIT again." }
@@ -3800,11 +3803,7 @@ private struct StikJITSettingsView: View {
             let scoped = url.startAccessingSecurityScopedResource()
             defer { if scoped { url.stopAccessingSecurityScopedResource() } }
             let data = try Data(contentsOf: url)
-            let plist = try PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any]
-            guard plist?["HostID"] is String, plist?["SystemBUID"] is String, plist?["HostPrivateKey"] is Data else {
-                print("StikJITSettingsView.importPairing.validation: invalid pairing record")
-                throw NSError(domain: "StikJIT", code: 1, userInfo: [NSLocalizedDescriptionKey: "The plist must be a device pairing record containing HostID, SystemBUID and HostPrivateKey."])
-            }
+            try validatePairing(data)
             try FileManager.default.createDirectory(at: pairingURL.deletingLastPathComponent(), withIntermediateDirectories: true)
             try data.write(to: pairingURL, options: [.atomic, .completeFileProtectionUnlessOpen])
             var stored = pairingURL
@@ -3812,12 +3811,43 @@ private struct StikJITSettingsView: View {
             values.isExcludedFromBackup = true
             try stored.setResourceValues(values)
             pairingName = url.lastPathComponent
-            message = "Pairing file imported. Prepare or enable JIT."
+            message = "Pairing file imported. If pairingFile.plist is in Files, StikJIT will use that file first."
             print("StikJITSettingsView.importPairing.saved: success, pairing record saved privately")
         } catch {
             print("StikJITSettingsView.importPairing.catch: \(String(reflecting: error)); stack=\(Thread.callStackSymbols)")
             message = error.localizedDescription
         }
+    }
+
+    private func validatePairing(_ data: Data) throws {
+        print("StikJITSettingsView.validatePairing: entering record validation")
+        defer { print("StikJITSettingsView.validatePairing.end: validation scope finished") }
+        let plist = try PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any]
+        guard plist?["HostID"] is String, plist?["SystemBUID"] is String, plist?["HostPrivateKey"] is Data else {
+            print("StikJITSettingsView.validatePairing.fields: invalid pairing record")
+            throw NSError(domain: "StikJIT", code: 1, userInfo: [NSLocalizedDescriptionKey: "The plist must be a device pairing record containing HostID, SystemBUID and HostPrivateKey."])
+        }
+        print("StikJITSettingsView.validatePairing.fields.end: success, required fields are present")
+    }
+
+    private func loadPairing() throws -> Data {
+        print("StikJITSettingsView.loadPairing: checking Documents for a pairing record")
+        defer { print("StikJITSettingsView.loadPairing.end: lookup scope finished") }
+        let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let documentsPairing = documents.appendingPathComponent("pairingFile.plist")
+        let data: Data
+        print("StikJITSettingsView.loadPairing.documents: reading Documents record")
+        do {
+            data = try Data(contentsOf: documentsPairing)
+            print("StikJITSettingsView.loadPairing.documents.end: success, read Documents record")
+        } catch let error as CocoaError where error.code == .fileReadNoSuchFile || error.code == .fileNoSuchFile {
+            print("StikJITSettingsView.loadPairing.fallback: \(String(reflecting: error)); stack=\(Thread.callStackSymbols); checking the imported copy")
+            data = try Data(contentsOf: pairingURL)
+            print("StikJITSettingsView.loadPairing.fallback.end: success, read imported record")
+        }
+        try validatePairing(data)
+        print("StikJITSettingsView.loadPairing.result: success, pairing record is ready")
+        return data
     }
 
     private func run(_ operation: String) {
@@ -3835,9 +3865,9 @@ private struct StikJITSettingsView: View {
             let endpoint = address.trimmingCharacters(in: .whitespacesAndNewlines)
             guard supported, IPv4Address(endpoint) != nil else {
                 print("StikJITSettingsView.run.address: error, unsupported environment or invalid IP")
-                throw NSError(domain: "StikJIT", code: 2, userInfo: [NSLocalizedDescriptionKey: "StikJIT requires iOS 17.4+, installation outside LiveContainer, and a valid IPv4 device address."])
+                throw NSError(domain: "StikJIT", code: 2, userInfo: [NSLocalizedDescriptionKey: "StikJIT requires iOS 17.4+ and a valid IPv4 device address."])
             }
-            let pairing = try Data(contentsOf: pairingURL)
+            let pairing = try loadPairing()
             guard (LRRuntimeBridge.jitStatusReport() as? [String: Any])?["activationQuarantined"] as? Bool != true || operation != "enable" else {
                 print("StikJITSettingsView.run.quarantine: error, activation requires manual retry")
                 throw NSError(domain: "StikJIT", code: 3, userInfo: [NSLocalizedDescriptionKey: "Review Activate JIT Now to retry the quarantined activation before enabling StikJIT."])
