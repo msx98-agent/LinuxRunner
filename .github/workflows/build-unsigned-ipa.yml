@@ -16,7 +16,7 @@ jobs:
     runs-on: macos-15
     timeout-minutes: 180
     env:
-      GPU_DEPS: ${{ runner.temp }}/linuxrunner-gpu-deps
+      GPU_DEPS: ${{ github.workspace }}/build/gpu-sources
       DEPOT_TOOLS_UPDATE: '0'
     steps:
       - uses: actions/checkout@v4
