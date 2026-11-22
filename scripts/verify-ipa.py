@@ -62,6 +62,7 @@ result['signature_check'] = subprocess.run(['codesign','-dv',str(binary.parent)]
 result['ipa_executable_matches_archive'] = executable_hash == hashlib.sha256(binary.read_bytes()).hexdigest()
 assert result['ipa_executable_matches_archive'], 'IPA/archive mismatch'
 options = pathlib.Path('build/release-derived/Build/Intermediates.noindex/ArchiveIntermediates/LinuxRunner/BuildProductsPath/Release-iphoneos/meson/meson-info/intro-buildoptions.json')
+assert os.environ.get('LINUXRUNNER_JIT') != 'YES' or options.exists(), 'Missing JIT build provenance'
 if options.exists():
     values = {item['name']:item['value'] for item in json.loads(options.read_text())}
     result['execution_build_options'] = {k:values[k] for k in ('guest_arch','jit','jit_emit','cli_aot')}
@@ -74,6 +75,7 @@ if options.exists():
 # GPU variant: libepoxy looks EGL up with dlsym, so the entry points must be
 # exported from the shipped (stripped) executable or enabling the GPU aborts.
 result['gpu_variant'] = b'virtio-gpu device active' in binary.read_bytes()
+assert os.environ.get('LINUXRUNNER_VIRGL') != 'YES' or result['gpu_variant'], 'Expected Metal graphics backend is absent'
 if result['gpu_variant']:
     exports = xcrun('dyld_info', '-exports', str(binary))
     result['gpu_egl_exports'] = sum(1 for line in exports.splitlines() if re.search(r' _egl[A-Z]', line))
