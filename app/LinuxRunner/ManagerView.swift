@@ -1709,6 +1709,7 @@ struct StorageManagementView: View {
 
 struct ExecutionEngineView: View {
     @AppStorage("LinuxRunnerJITMethod") private var jitMethod = "stikdebug"
+    @State private var stikJITBusy = false
     @State private var confirmJITRetry = false
     @State private var status = LRRuntimeBridge.executionBackendStatus() as? [String: Any] ?? [:]
     @State private var report = LRRuntimeBridge.jitStatusReport() as? [String: Any] ?? [:]
@@ -1742,7 +1743,7 @@ struct ExecutionEngineView: View {
                         Text("Interpreter").tag("interpreter")
                         Text("Automatic").tag("automatic")
                         Text("JIT").tag("jit")
-                    }.onChange(of: mode) { LRRuntimeBridge.setExecutionMode($0) }
+                    }.disabled(stikJITBusy).onChange(of: mode) { LRRuntimeBridge.setExecutionMode($0) }
                 } footer: {
                     Text("Interpreter always works. Automatic and JIT start the JIT only after iOS allows it — LinuxRunner launched or attached by StikDebug — and otherwise keep the interpreter. The active backend above is what actually runs.")
                 }
@@ -1751,10 +1752,10 @@ struct ExecutionEngineView: View {
                         Text("Wait for Debugger").tag("debugger")
                         Text("StikDebug").tag("stikdebug")
                         Text("Built-in StikJIT").tag("stikjit")
-                    }
+                    }.disabled(stikJITBusy)
                 }
                 if jitMethod == "stikjit" {
-                    StikJITSettingsView(mode: $mode, refresh: refresh)
+                    StikJITSettingsView(mode: $mode, busy: $stikJITBusy, refresh: refresh)
                 }
                 if !active && (mode != "interpreter" || (report["debugger"] as? Bool ?? false)) {
                     Section {
@@ -3756,12 +3757,12 @@ private struct ProcessDetailView: View {
 
 private struct StikJITSettingsView: View {
     @Binding var mode: String
+    @Binding var busy: Bool
     let refresh: () -> Void
     @AppStorage("LinuxRunnerStikJITAddress") private var address = "10.254.0.1"
     @AppStorage("LinuxRunnerStikJITForceScript") private var forceScript = false
     @AppStorage("LinuxRunnerStikJITPairingName") private var pairingName = ""
     @State private var importing = false
-    @State private var busy = false
     @State private var message = "Import a pairing plist to begin."
     private var pairingURL: URL { FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("StikJIT/pairingFile.plist") }
     private var supported: Bool {
@@ -3770,9 +3771,9 @@ private struct StikJITSettingsView: View {
     }
 
     var body: some View {
-        Section("Built-in StikJIT") {
+        Section {
             TextField("Target device IP", text: $address).keyboardType(.numbersAndPunctuation).textInputAutocapitalization(.never).autocorrectionDisabled().disabled(busy)
-            Toggle("Force JIT Script", isOn: $forceScript).disabled(busy)
+            Toggle("Force JIT Script", isOn: $forceScript).disabled(busy || !LRRuntimeBridge.requiresPreparedJITRegion())
             LabeledRow("Pairing file", pairingName.isEmpty ? "Not imported" : pairingName)
             Button("Import Pairing Plist") { importing = true }.disabled(busy || !supported)
             Button("Prepare JIT") { run("prepare") }.disabled(busy || !supported)
@@ -3781,7 +3782,7 @@ private struct StikJITSettingsView: View {
             if busy { ProgressView("StikJIT is working…") }
             Text(message).font(.footnote).textSelection(.enabled)
             if !supported { Text("Requires iOS 17.4 or later and installation outside LiveContainer.").foregroundColor(.orange) }
-        } footer: {
+        } header: { Text("Built-in StikJIT") } footer: {
             Text("Enable Developer Mode, sign LinuxRunner with get-task-allow, and connect LocalDevVPN. Import this device’s pairing plist and set its tunnel IP. Nearby Wi-Fi is recommended; without Wi-Fi, enable cellular data, connect LocalDevVPN, then enable Airplane Mode before returning. If preparation keeps failing, reboot and retry. Reset Developer Disk Image to download a fresh cache. The universal script is built in.")
         }
         .fileImporter(isPresented: $importing, allowedContentTypes: [.propertyList, .xml, .data]) { result in importPairing(result) }
@@ -3849,7 +3850,7 @@ private struct StikJITSettingsView: View {
             }
             busy = true
             message = "\(operation.capitalized) in progress at \(endpoint)…"
-            let payload: [String: Any] = ["operation": operation, "pid": NSNumber(value: getpid()), "pairing": pairing, "address": endpoint, "forceScript": forceScript]
+            let payload: [String: Any] = ["operation": operation, "pid": NSNumber(value: getpid()), "pairing": pairing, "address": endpoint, "forceScript": forceScript && LRRuntimeBridge.requiresPreparedJITRegion()]
             LRRuntimeBridge.runStikJIT(payload) { reply, error in
                 print("StikJITSettingsView.run.completion: entering result delivery")
                 defer { print("StikJITSettingsView.run.completion.end: result delivered") }

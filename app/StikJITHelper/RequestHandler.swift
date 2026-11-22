@@ -26,7 +26,7 @@ final class RequestHandler: NSObject, NSExtensionRequestHandling {
                 throw NSError(domain: "StikJITHelper", code: 1, userInfo: [NSLocalizedDescriptionKey: "Invalid helper request"])
             }
             try pairing.write(to: temporary, options: [.atomic, .completeFileProtectionUnlessOpen])
-            defer { try? FileManager.default.removeItem(at: temporary) }
+            defer { removePairingFile(temporary) }
             let library = FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask)[0]
             let paths = DDIPaths.default(in: library.appendingPathComponent("StikJIT"))
             let configuration = StikJIT.Configuration(deviceAddress: address)
@@ -39,6 +39,18 @@ final class RequestHandler: NSObject, NSExtensionRequestHandling {
         } catch {
             NSLog("StikJITHelper.perform.catch: error, %@; stack=%@", String(reflecting: error), Thread.callStackSymbols)
             context.cancelRequest(withError: error)
+        }
+    }
+
+    private func removePairingFile(_ file: URL) {
+        NSLog("StikJITHelper.removePairingFile: entering temporary record cleanup")
+        defer { NSLog("StikJITHelper.removePairingFile.end: cleanup scope finished") }
+        do {
+            NSLog("StikJITHelper.removePairingFile.do: entering removal")
+            try FileManager.default.removeItem(at: file)
+            NSLog("StikJITHelper.removePairingFile.do.end: success, temporary record removed")
+        } catch {
+            NSLog("StikJITHelper.removePairingFile.catch: error, %@; stack=%@", String(reflecting: error), Thread.callStackSymbols)
         }
     }
 
