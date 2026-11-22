@@ -3833,11 +3833,14 @@ private struct StikJITSettingsView: View {
         print("StikJITSettingsView.validatePairing: entering record validation")
         defer { print("StikJITSettingsView.validatePairing.end: validation scope finished") }
         let plist = try PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any]
-        guard plist?["HostID"] is String, plist?["SystemBUID"] is String, plist?["HostPrivateKey"] is Data else {
-            print("StikJITSettingsView.validatePairing.fields: invalid pairing record")
-            throw NSError(domain: "StikJIT", code: 1, userInfo: [NSLocalizedDescriptionKey: "The plist must be a device pairing record containing HostID, SystemBUID and HostPrivateKey."])
+        let publicKey = plist?["public_key"] as? Data
+        let privateKey = plist?["private_key"] as? Data
+        guard publicKey?.count == 32, privateKey?.count == 32, plist?["identifier"] is String else {
+            print("StikJITSettingsView.validatePairing.fields: invalid Remote Pairing record")
+            let detail = "StikJIT needs a Remote Pairing plist with 32-byte public_key and private_key data fields and a string identifier. A Lockdown pairing plist with HostID and SystemBUID is a different format."
+            throw NSError(domain: "StikJIT", code: 1, userInfo: [NSLocalizedDescriptionKey: detail])
         }
-        print("StikJITSettingsView.validatePairing.fields.end: success, required fields are present")
+        print("StikJITSettingsView.validatePairing.fields.end: success, required Remote Pairing fields are present")
     }
 
     private func refreshPairingStatus() {
