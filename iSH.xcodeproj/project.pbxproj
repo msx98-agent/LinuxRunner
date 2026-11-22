@@ -365,6 +365,7 @@
 		BBFB55662158644C00DFE6DE /* libresolv.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = BBFB55652158644C00DFE6DE /* libresolv.tbd */; };
 		1A1100000000000000000001 /* Environment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A1200000000000000000001; };
 		1A1100000000000000000002 /* ManagerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A1200000000000000000002; };
+		1D1500000000000000000856 /* BinarySigning.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D1500000000000000000857; };
 		1A11000000000000000000A3 /* SetupWizard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A12000000000000000000A3; };
 		1A1100000000000000000003 /* RuntimeBridge.m in Sources */ = {isa = PBXBuildFile; fileRef = 1A1200000000000000000003; };
 		1A1100000000000000000004 /* FileTransfer.c in Sources */ = {isa = PBXBuildFile; fileRef = 1A1200000000000000000004; };
@@ -946,6 +947,7 @@
 		BBFB557F21587B6800DFE6DE /* ArrowBarButton.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ArrowBarButton.m; sourceTree = "<group>"; };
 		1A1200000000000000000001 /* Environment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = app/LinuxRunner/Environment.swift; sourceTree = SOURCE_ROOT; };
 		1A1200000000000000000002 /* ManagerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = app/LinuxRunner/ManagerView.swift; sourceTree = SOURCE_ROOT; };
+		1D1500000000000000000857 /* BinarySigning.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = app/LinuxRunner/BinarySigning.swift; sourceTree = SOURCE_ROOT; };
 		1A12000000000000000000A3 /* SetupWizard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = app/LinuxRunner/SetupWizard.swift; sourceTree = SOURCE_ROOT; };
 		1A1200000000000000000003 /* RuntimeBridge.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = app/LinuxRunner/RuntimeBridge.m; sourceTree = SOURCE_ROOT; };
 		1A1200000000000000000004 /* FileTransfer.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = app/LinuxRunner/FileTransfer.c; sourceTree = SOURCE_ROOT; };
@@ -1268,6 +1270,7 @@
 				1A1200000000000000000003 /* RuntimeBridge.m */,
 				1D1200000000000000000854 /* shader_compiler.cpp */,
 				1A1200000000000000000002 /* ManagerView.swift */,
+				1D1500000000000000000857 /* BinarySigning.swift */,
 				1A12000000000000000000A3 /* SetupWizard.swift */,
 				1A1200000000000000000001 /* Environment.swift */,
                 1C1200000000000000000001 /* Diagnostics.swift */,
@@ -1738,6 +1741,7 @@
 			buildConfigurationList = ACF7C657334FB697AE177303 /* Build configuration list for PBXNativeTarget "iSH-ARM64-ffmpeg" */;
 			buildPhases = (
 				AA000300AF96D90D00FFB7A4 /* Build Meson (ARM64) */,
+				1D1500000000000000000855 /* Build ZSign */,
 				AA0000081F96D90D00FFB7A4 /* Sources */,
 				AA0000091F96D90D00FFB7A4 /* Frameworks */,
 				AA000011AF96D90D00FFB7A4 /* Download Root */,
@@ -1764,6 +1768,7 @@
 			buildPhases = (
 				AA000300AF96D90D00FFB7A4 /* Build Meson (ARM64) */,
 				1D1500000000000000000854 /* Build Shader Compiler */,
+				1D1500000000000000000855 /* Build ZSign */,
 				AA0000081F96D90D00FFB7A4 /* Sources */,
 				AA0000091F96D90D00FFB7A4 /* Frameworks */,
 				AA000011AF96D90D00FFB7A4 /* Download Root */,
@@ -2566,6 +2571,18 @@
  shellPath = /bin/bash;
  shellScript = "/bin/bash \"$SRCROOT/scripts/build-shader-compiler.sh\" \"$PLATFORM_NAME\" \"$ARCHS\"";
 };
+		1D1500000000000000000855 /* Build ZSign */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = ();
+			inputPaths = ();
+			outputPaths = ();
+			name = "Build ZSign";
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/bash;
+			shellScript = "set -e\n/bin/bash \"$SRCROOT/scripts/build-zsign.sh\" \"$PLATFORM_NAME\" \"$ARCHS\"\nmkdir -p \"$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH\"\ncp \"$SRCROOT/build/zsign/$PLATFORM_NAME/NOTICES.txt\" \"$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/zsign-notices.txt\"\n";
+		};
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -2673,6 +2690,7 @@
 				1A1100000000000000000004 /* FileTransfer.c in Sources */,
 				1A1100000000000000000003 /* RuntimeBridge.m in Sources */,
 				1A1100000000000000000002 /* ManagerView.swift in Sources */,
+				1D1500000000000000000856 /* BinarySigning.swift in Sources */,
 				1A11000000000000000000A3 /* SetupWizard.swift in Sources */,
 				1A1100000000000000000001 /* Environment.swift in Sources */,
                 1C1100000000000000000001 /* Diagnostics.swift in Sources */,

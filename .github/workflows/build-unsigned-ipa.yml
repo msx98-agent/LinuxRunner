@@ -39,6 +39,14 @@ jobs:
         with:
           path: build/StikJIT.framework
           key: stikjit-${{ runner.os }}-${{ runner.arch }}-${{ steps.xcode.outputs.version }}-${{ steps.stikjit-revision.outputs.sha }}-${{ hashFiles('scripts/build-stikjit.sh') }}
+      - name: Cache static iOS signer
+        uses: actions/cache@v4
+        with:
+          path: |
+            build/zsign/iphoneos/liblrzsign.a
+            build/zsign/iphoneos/NOTICES.txt
+            build/zsign/iphoneos/stamp
+          key: zsign-${{ runner.os }}-${{ runner.arch }}-${{ steps.xcode.outputs.version }}-${{ hashFiles('scripts/build-zsign.sh', 'app/LinuxRunner/ZSignBridge.cpp', 'app/LinuxRunner/ZSignBridge.h') }}
       - name: Restore pinned Metal libraries
         id: metal-cache
         uses: actions/cache/restore@v4
@@ -155,5 +163,6 @@ jobs:
           name: LinuxRunner-build-logs
           path: |
             build/releases/*.log
+            build/zsign/iphoneos/openssl-build.log
             build/gpu/iphoneos/work/**/meson-logs/*.txt
           if-no-files-found: ignore

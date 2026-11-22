@@ -1,5 +1,6 @@
 #import "RuntimeBridge.h"
 #import "GUIViewController.h"
+#import "ZSignBridge.h"
 
 #import "../SceneDelegate.h"
 #import "../UserPreferences.h"

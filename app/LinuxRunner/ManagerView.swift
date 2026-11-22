@@ -762,6 +762,9 @@ struct ManagerView: View {
                 NavigationLink(destination: StorageManagementView(environments: manager.environments)) { SettingsLabel("Storage", "internaldrive.fill", .gray) }
                 Button { LRRuntimeBridge.exportDesktopReport { url in if let url { share = ExportItem(url: url) } } } label: { SettingsLabel("Export Desktop Report", "doc.text.magnifyingglass", .brown) }.foregroundColor(.primary)
             }
+            Section("Signing") {
+                NavigationLink(destination: BinarySigningSettingsView()) { SettingsLabel("Code Signing", "signature", .indigo) }
+            }
             Section {
                 Toggle(isOn: $developerMode) { SettingsLabel("Developer Mode", "hammer.fill", .gray) }
                 if developerMode {
@@ -2335,14 +2338,15 @@ private struct NoticesView: View {
         ("Alpine Linux minirootfs 3.24.2 (bundled)", "BusyBox, apk-tools, alpine-baselayout, scanelf: GPL-2.0; musl: MIT; OpenSSL: Apache-2.0; zlib: Zlib; ca-certificates: MPL-2.0 and MIT. Source: Alpine aports."),
         ("libarchive", "BSD 2-Clause License."),
         ("glslang and SPIRV-Cross", "BSD 3-Clause / Apache 2.0 (see their notices below)."),
+        ("ZSign and OpenSSL", "MIT and Apache 2.0 (see their bundled notices below)."),
         ("Mesa (guest graphics, installed from Debian)", "MIT License."),
         ("Debian and Alpine packages", "Installed from the distributions' official repositories under each package's own license (/usr/share/doc/<package>/copyright in Linux)."),
     ]
     private var bundled: [(String, String)] {
-        guard let support = Bundle.main.url(forResource: "GUISupport", withExtension: "bundle") else { return [] }
-        return ["gpu-bridge-notice.txt", "shader-compiler-notices.txt", "mesa-demos-notice.txt", "terminal-notices.txt"].compactMap { name in
-            (try? String(contentsOf: support.appendingPathComponent(name))).map { (name, $0) }
-        }
+        let names = ["gpu-bridge-notice.txt", "shader-compiler-notices.txt", "mesa-demos-notice.txt", "terminal-notices.txt"]
+        let support = Bundle.main.url(forResource: "GUISupport", withExtension: "bundle")
+        let urls = names.compactMap { support?.appendingPathComponent($0) } + [Bundle.main.url(forResource: "zsign-notices", withExtension: "txt")].compactMap { $0 }
+        return urls.compactMap { url in (try? String(contentsOf: url)).map { (url.lastPathComponent, $0) } }
     }
     var body: some View {
         NavigationView {
