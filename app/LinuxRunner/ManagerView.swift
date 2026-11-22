@@ -3762,8 +3762,11 @@ private struct StikJITSettingsView: View {
     @AppStorage("LinuxRunnerStikJITAddress") private var address = "10.254.0.1"
     @AppStorage("LinuxRunnerStikJITForceScript") private var forceScript = false
     @AppStorage("LinuxRunnerStikJITPairingName") private var pairingName = ""
+    @Environment(\.scenePhase) private var scenePhase
     @State private var importing = false
-    @State private var message = "Drop pairingFile.plist next to Shared in Files, or import a pairing plist."
+    @State private var message: String?
+    @State private var pairingStatus = "Checking…"
+    private enum PairingSource { case documents, imported }
     private var pairingURL: URL { FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("StikJIT/pairingFile.plist") }
     private var supported: Bool {
         if #available(iOS 17.4, *) { return true }
@@ -3774,13 +3777,13 @@ private struct StikJITSettingsView: View {
         Section {
             TextField("Target device IP", text: $address).keyboardType(.numbersAndPunctuation).textInputAutocapitalization(.never).autocorrectionDisabled().disabled(busy)
             Toggle("Force JIT Script", isOn: $forceScript).disabled(busy || !LRRuntimeBridge.requiresPreparedJITRegion())
-            LabeledRow("Imported pairing file", pairingName.isEmpty ? "Not imported" : pairingName)
+            LabeledRow("Pairing file", pairingStatus)
             Button("Import Pairing Plist") { importing = true }.disabled(busy || !supported)
             Button("Prepare JIT") { run("prepare") }.disabled(busy || !supported)
             Button("Enable with StikJIT") { run("enable") }.disabled(busy || !supported)
             Button("Reset Developer Disk Image") { run("reset") }.disabled(busy || !supported)
             if busy { ProgressView("StikJIT is working…") }
-            Text(message).font(.footnote).textSelection(.enabled)
+            if let message { Text(message).font(.footnote).textSelection(.enabled) }
             if !supported { Text("Requires iOS 17.4 or later.").foregroundColor(.orange) }
             else if getenv("LC_HOME_PATH") != nil {
                 Text("LiveContainer may not be able to launch the StikJIT helper. If it fails, try StikDebug or Wait for Debugger.").foregroundColor(.orange)
@@ -3789,13 +3792,20 @@ private struct StikJITSettingsView: View {
             Text("Enable Developer Mode, sign LinuxRunner with get-task-allow, and connect LocalDevVPN. StikJIT looks for pairingFile.plist next to Shared in Files and uses the imported copy only if that file is missing. Set the device’s tunnel IP. Nearby Wi-Fi is recommended; without Wi-Fi, enable cellular data, connect LocalDevVPN, then enable Airplane Mode before returning. If preparation keeps failing, reboot and retry. Reset Developer Disk Image to download a fresh cache. The universal script is built in.")
         }
         .fileImporter(isPresented: $importing, allowedContentTypes: [.propertyList, .xml, .data]) { result in importPairing(result) }
+        .onAppear { refreshPairingStatus() }
+        .onChange(of: scenePhase) { phase in
+            if phase == .active { refreshPairingStatus() }
+        }
         .onChange(of: address) { _ in message = "Device IP changed. Prepare JIT again." }
         .onChange(of: forceScript) { _ in message = "Script setting changed. Prepare JIT again." }
     }
 
     private func importPairing(_ result: Result<URL, Error>) {
         print("StikJITSettingsView.importPairing: entering import")
-        defer { print("StikJITSettingsView.importPairing.end: import scope finished") }
+        defer {
+            refreshPairingStatus()
+            print("StikJITSettingsView.importPairing.end: import scope finished")
+        }
         do {
             print("StikJITSettingsView.importPairing.do: entering file validation")
             defer { print("StikJITSettingsView.importPairing.do.end: file scope finished") }
@@ -3830,24 +3840,49 @@ private struct StikJITSettingsView: View {
         print("StikJITSettingsView.validatePairing.fields.end: success, required fields are present")
     }
 
-    private func loadPairing() throws -> Data {
+    private func refreshPairingStatus() {
+        print("StikJITSettingsView.refreshPairingStatus: checking active pairing source")
+        defer { print("StikJITSettingsView.refreshPairingStatus.end: status updated") }
+        do {
+            let (_, source) = try loadPairing()
+            switch source {
+            case .documents:
+                pairingStatus = "pairingFile.plist (Files)"
+                print("StikJITSettingsView.refreshPairingStatus.documents: success, using Files")
+            case .imported:
+                pairingStatus = pairingName.isEmpty ? "Imported" : "\(pairingName) (Imported)"
+                print("StikJITSettingsView.refreshPairingStatus.imported: success, using private copy")
+            }
+        } catch let error as CocoaError where error.code == .fileReadNoSuchFile || error.code == .fileNoSuchFile {
+            print("StikJITSettingsView.refreshPairingStatus.missing: \(String(reflecting: error)); stack=\(Thread.callStackSymbols)")
+            pairingStatus = "No pairing file found"
+        } catch {
+            print("StikJITSettingsView.refreshPairingStatus.catch: \(String(reflecting: error)); stack=\(Thread.callStackSymbols)")
+            pairingStatus = "Invalid or unreadable"
+        }
+    }
+
+    private func loadPairing() throws -> (Data, PairingSource) {
         print("StikJITSettingsView.loadPairing: checking Documents for a pairing record")
         defer { print("StikJITSettingsView.loadPairing.end: lookup scope finished") }
         let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         let documentsPairing = documents.appendingPathComponent("pairingFile.plist")
         let data: Data
+        let source: PairingSource
         print("StikJITSettingsView.loadPairing.documents: reading Documents record")
         do {
             data = try Data(contentsOf: documentsPairing)
+            source = .documents
             print("StikJITSettingsView.loadPairing.documents.end: success, read Documents record")
         } catch let error as CocoaError where error.code == .fileReadNoSuchFile || error.code == .fileNoSuchFile {
             print("StikJITSettingsView.loadPairing.fallback: \(String(reflecting: error)); stack=\(Thread.callStackSymbols); checking the imported copy")
             data = try Data(contentsOf: pairingURL)
+            source = .imported
             print("StikJITSettingsView.loadPairing.fallback.end: success, read imported record")
         }
         try validatePairing(data)
         print("StikJITSettingsView.loadPairing.result: success, pairing record is ready")
-        return data
+        return (data, source)
     }
 
     private func run(_ operation: String) {
@@ -3867,7 +3902,7 @@ private struct StikJITSettingsView: View {
                 print("StikJITSettingsView.run.address: error, unsupported environment or invalid IP")
                 throw NSError(domain: "StikJIT", code: 2, userInfo: [NSLocalizedDescriptionKey: "StikJIT requires iOS 17.4+ and a valid IPv4 device address."])
             }
-            let pairing = try loadPairing()
+            let (pairing, _) = try loadPairing()
             guard (LRRuntimeBridge.jitStatusReport() as? [String: Any])?["activationQuarantined"] as? Bool != true || operation != "enable" else {
                 print("StikJITSettingsView.run.quarantine: error, activation requires manual retry")
                 throw NSError(domain: "StikJIT", code: 3, userInfo: [NSLocalizedDescriptionKey: "Review Activate JIT Now to retry the quarantined activation before enabling StikJIT."])

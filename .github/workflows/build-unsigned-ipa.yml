@@ -26,19 +26,19 @@ jobs:
       - name: Use selected Xcode in all build scripts
         run: echo "DEVELOPER_DIR=$(xcode-select -p)" >> "$GITHUB_ENV"
       - name: Initialize pinned dependencies
-        run: git submodule update --init --recursive --checkout -- deps/libapps deps/libarchive deps/glslang deps/spirv-cross deps/StikJIT
-      - name: Install build tools
-        run: |
-          echo 'build-unsigned-ipa:tools: installing build prerequisites'
-          brew install meson ninja cmake lld xcodegen pkg-config
-          python3 -m venv "$RUNNER_TEMP/linuxrunner-python"
-          "$RUNNER_TEMP/linuxrunner-python/bin/pip" install mako PyYAML
-          echo "$RUNNER_TEMP/linuxrunner-python/bin" >> "$GITHUB_PATH"
-          echo "$(brew --prefix lld)/bin" >> "$GITHUB_PATH"
-          echo 'build-unsigned-ipa:tools:complete'
+        run: git submodule update --init --recursive --checkout -- deps/libapps deps/libarchive deps/glslang deps/spirv-cross
       - name: Identify Xcode toolchain
         id: xcode
         run: echo "version=$(xcodebuild -version | shasum -a 256 | cut -d ' ' -f 1)" >> "$GITHUB_OUTPUT"
+      - name: Identify pinned StikJIT revision
+        id: stikjit-revision
+        run: echo "sha=$(git rev-parse HEAD:deps/StikJIT)" >> "$GITHUB_OUTPUT"
+      - name: Restore compiled StikJIT framework
+        id: stikjit-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: build/StikJIT.framework
+          key: stikjit-${{ runner.os }}-${{ runner.arch }}-${{ steps.xcode.outputs.version }}-${{ steps.stikjit-revision.outputs.sha }}-${{ hashFiles('scripts/build-stikjit.sh') }}
       - name: Restore pinned Metal libraries
         id: metal-cache
         uses: actions/cache/restore@v4
@@ -56,6 +56,39 @@ jobs:
             build/gpu/iphoneos/lib/libangle.a
             build/gpu/iphoneos/include/angle
           key: angle-${{ runner.os }}-${{ runner.arch }}-${{ steps.xcode.outputs.version }}-${{ hashFiles('scripts/prepare-gpu-deps.sh', 'scripts/gpu/angle*.py') }}
+      - name: Install missing build tools
+        shell: bash
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: '1'
+          STIKJIT_CACHE_HIT: ${{ steps.stikjit-cache.outputs.cache-hit }}
+        run: |
+          echo 'build-unsigned-ipa:tools: checking build prerequisites'
+          missing=()
+          command -v meson >/dev/null || missing+=(meson)
+          command -v ninja >/dev/null || missing+=(ninja)
+          command -v cmake >/dev/null || missing+=(cmake)
+          command -v pkg-config >/dev/null || missing+=(pkgconf)
+          lld_bin="$(brew --prefix)/opt/lld/bin"
+          command -v ld.lld >/dev/null || [[ -x "$lld_bin/ld.lld" ]] || missing+=(lld)
+          [[ "$STIKJIT_CACHE_HIT" == true ]] || command -v xcodegen >/dev/null || missing+=(xcodegen)
+          echo "build-unsigned-ipa:tools: missing Homebrew packages: ${missing[*]:-none}"
+          if ((${#missing[@]})); then
+            brew install "${missing[@]}"
+            echo 'build-unsigned-ipa:tools: Homebrew install succeeded'
+          fi
+          if ! command -v ld.lld >/dev/null; then
+            echo 'build-unsigned-ipa:tools: checking the Homebrew linker'
+            if [[ ! -x "$lld_bin/ld.lld" ]]; then
+              echo "build-unsigned-ipa:tools: error, ld.lld not found at $lld_bin/ld.lld" >&2
+              exit 1
+            fi
+            echo "$lld_bin" >> "$GITHUB_PATH"
+            echo 'build-unsigned-ipa:tools: Homebrew linker added to PATH for later steps'
+          fi
+          python3 -m venv "$RUNNER_TEMP/linuxrunner-python"
+          "$RUNNER_TEMP/linuxrunner-python/bin/python" -m pip install mako PyYAML
+          echo "$RUNNER_TEMP/linuxrunner-python/bin" >> "$GITHUB_PATH"
+          echo 'build-unsigned-ipa:tools: all prerequisites ready'
       - name: Prepare pinned Metal sources
         if: steps.metal-cache.outputs.cache-hit != 'true'
         run: scripts/prepare-gpu-deps.sh
@@ -82,7 +115,14 @@ jobs:
             build/gpu/iphoneos/REVISIONS
           key: ${{ steps.metal-cache.outputs.cache-primary-key }}
       - name: Build pinned StikJIT framework
+        if: steps.stikjit-cache.outputs.cache-hit != 'true'
         run: scripts/build-stikjit.sh
+      - name: Save compiled StikJIT framework
+        if: steps.stikjit-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: build/StikJIT.framework
+          key: ${{ steps.stikjit-cache.outputs.cache-primary-key }}
       - name: Build unsigned JIT-capable IPA
         env:
           LINUXRUNNER_JIT: 'YES'
